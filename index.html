@@ -71,12 +71,12 @@
                 <div class="grid grid-cols-2 gap-2">
                     <label class="flex flex-col items-center p-3 bg-slate-50 rounded-xl border-2 transition-all cursor-pointer" :class="earlyPick ? 'border-orange-400 bg-orange-50' : 'border-transparent'">
                         <input type="checkbox" v-model="earlyPick" class="mb-1 w-6 h-6 text-orange-600 rounded">
-                        <span class="text-[11px] font-bold text-gray-600">0900提前取車</span>
+                        <span class="text-[11px] font-bold text-gray-600">0900前提車</span>
                         <span class="text-[10px] font-black text-orange-600">+$200</span>
                     </label>
                     <label class="flex flex-col items-center p-3 bg-slate-50 rounded-xl border-2 transition-all cursor-pointer" :class="lateReturn ? 'border-orange-400 bg-orange-50' : 'border-transparent'">
                         <input type="checkbox" v-model="lateReturn" class="mb-1 w-6 h-6 text-orange-600 rounded">
-                        <span class="text-[11px] font-bold text-gray-600">2100延後還車</span>
+                        <span class="text-[11px] font-bold text-gray-600">2100後還車</span>
                         <span class="text-[10px] font-black text-orange-600">+$200</span>
                     </label>
                 </div>
@@ -132,13 +132,16 @@
                 basePrice() { const d = this.rates[this.selectedRank][this.identity]; return this.dayType === 'weekday' ? d.weekday : d.holiday; },
                 insurancePrice() { return this.rates[this.selectedRank][this.identity].ins; },
                 kmFormula() {
-                    const r = this.rates[this.selectedRank][this.identity].km; const d = Math.max(0, this.km);
+                    const r = this.rates[this.selectedRank][this.identity].km;
+                    const d = Math.max(0, this.km);
                     if (d <= 100) return `(${d}x$${r[0]})`;
                     if (d <= 200) return `(100x$${r[0]}) + (${d-100}x$${r[1]})`;
-                    return `(100x$${r[0]}) + (100x$${$r[1]}) + (${d-200}x$${r[2]})`;
+                    // 修正此處：第三段應為總里程減去 200
+                    return `(100x$${r[0]}) + (100x$${r[1]}) + (${d-200}x$${r[2]})`;
                 },
                 kmCost() {
-                    const r = this.rates[this.selectedRank][this.identity].km; const d = Math.max(0, this.km);
+                    const r = this.rates[this.selectedRank][this.identity].km;
+                    const d = Math.max(0, this.km);
                     if (d <= 100) return d * r[0];
                     if (d <= 200) return (100 * r[0]) + (d - 100) * r[1];
                     return (100 * r[0]) + (100 * r[1]) + (d - 200) * r[2];
@@ -146,7 +149,8 @@
                 totalPrice() {
                     let t = (this.basePrice * this.days) + this.kmCost;
                     if (this.includeInsurance) t += this.insurancePrice;
-                    if (this.earlyPick) t += 200; if (this.lateReturn) t += 200;
+                    if (this.earlyPick) t += 200;
+                    if (this.lateReturn) t += 200;
                     return t;
                 }
             }
