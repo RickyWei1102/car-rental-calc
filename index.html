@@ -2,92 +2,146 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>租車價格計算器</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>租車費率試算器</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+    </style>
 </head>
-<body class="bg-gray-100 p-4">
-    <div id="app" class="max-w-md mx-auto bg-white rounded-xl shadow-md overflow-hidden p-6">
-        <h1 class="text-xl font-bold mb-4 text-center">租車費率試算</h1>
-        
-        <div class="space-y-4">
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+
+    <div id="app" class="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden">
+        <div class="bg-slate-800 p-6 text-center">
+            <h1 class="text-white text-xl font-bold tracking-wider">風馳萬里 租車試算</h1>
+            <p class="text-slate-400 text-xs mt-1">專業費率計算系統</p>
+        </div>
+
+        <div class="p-6 space-y-5">
             <div>
-                <label class="block text-sm font-medium">等級分類</label>
-                <select v-model="selectedRank" class="w-full border p-2 rounded">
+                <label class="block text-sm font-semibold text-gray-700 mb-1">等級分類</label>
+                <select v-model="selectedRank" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none">
                     <option v-for="(data, rank) in rates" :key="rank" :value="rank">{{ rank }}</option>
                 </select>
             </div>
 
-            <div>
-                <label class="block text-sm font-medium">身分</label>
-                <select v-model="identity" class="w-full border p-2 rounded">
-                    <option value="member">會員</option>
-                    <option value="nonMember">非會員</option>
-                </select>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">身分</label>
+                    <select v-model="identity" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-3 outline-none">
+                        <option value="member">會員</option>
+                        <option v-if="rates[selectedRank].nonMember" value="nonMember">非會員</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">時段</label>
+                    <select v-model="dayType" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-3 outline-none">
+                        <option value="weekday">平日</option>
+                        <option value="holiday">假日</option>
+                    </select>
+                </div>
             </div>
 
             <div>
-                <label class="block text-sm font-medium">時段</label>
-                <select v-model="dayType" class="w-full border p-2 rounded">
-                    <option value="weekday">平日 (0900-2100)</option>
-                    <option value="holiday">假日 (0900-2100)</option>
-                </select>
+                <label class="block text-sm font-semibold text-gray-700 mb-1">行駛總里程 (公里)</label>
+                <input type="number" v-model.number="km" min="0" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="請輸入公里數">
             </div>
 
-            <div>
-                <label class="block text-sm font-medium">總行駛里程 (km)</label>
-                <input type="number" v-model.number="km" class="w-full border p-2 rounded" placeholder="請輸入公里數">
+            <div class="mt-8 border-t pt-6">
+                <div class="flex justify-between items-center mb-2 text-gray-600">
+                    <span>基礎出車費</span>
+                    <span>${{ basePrice }}</span>
+                </div>
+                <div class="flex justify-between items-center mb-4 text-gray-600">
+                    <span>里程加收費</span>
+                    <span>${{ kmCost }}</span>
+                </div>
+                <div class="flex justify-between items-center bg-blue-600 p-4 rounded-xl text-white">
+                    <span class="font-bold text-lg">預估總金額</span>
+                    <span class="font-bold text-2xl">${{ totalPrice }}</span>
+                </div>
             </div>
-        </div>
 
-        <div class="mt-8 p-4 bg-blue-50 rounded-lg">
-            <div class="text-lg font-bold text-blue-800">預估總金額：${{ totalPrice }}</div>
-            <p class="text-xs text-gray-500 mt-2">* 包含出車費與分段里程費，不含逾時費與保險</p>
+            <p class="text-[10px] text-gray-400 text-center leading-relaxed">
+                * 本試算結果僅供參考，實際金額依取車現場為準<br>
+                * 計算規則：採分段計價 (1-100km / 101-200km / 201km+)
+            </p>
         </div>
     </div>
 
     <script>
-        const { createApp } = Vue
+        const { createApp } = Vue;
         createApp({
             data() {
                 return {
-                    selectedRank: '鑽石級',
+                    selectedRank: '大師級',
                     identity: 'member',
                     dayType: 'weekday',
                     km: 0,
-                    // Model: 根據圖片輸入的部分資料
+                    // 完整的 Model JSON
                     rates: {
+                        '永恆傳說': { member: { weekday: 1000, holiday: 1100, km: [13, 10, 7] } },
+                        '王者級': { member: { weekday: 700, holiday: 850, km: [10, 8, 6] } },
+                        '大師級': { 
+                            member: { weekday: 650, holiday: 800, km: [8, 6, 4] },
+                            nonMember: { weekday: 750, holiday: 900, km: [10, 7, 5] }
+                        },
                         '鑽石級': { 
                             member: { weekday: 600, holiday: 750, km: [7, 5, 3] },
                             nonMember: { weekday: 700, holiday: 850, km: [9, 6, 4] }
                         },
+                        '柏金級': { 
+                            member: { weekday: 550, holiday: 700, km: [6, 4, 3] },
+                            nonMember: { weekday: 650, holiday: 800, km: [8, 5, 4] }
+                        },
                         '黃金級': { 
                             member: { weekday: 500, holiday: 650, km: [3, 3, 3] },
                             nonMember: { weekday: 600, holiday: 750, km: [4, 4, 4] }
+                        },
+                        '白銀級': { 
+                            member: { weekday: 450, holiday: 450, km: [2, 2, 2] },
+                            nonMember: { weekday: 550, holiday: 550, km: [3, 3, 3] }
+                        },
+                        '青銅級': { 
+                            member: { weekday: 400, holiday: 400, km: [2, 2, 2] },
+                            nonMember: { weekday: 500, holiday: 500, km: [3, 3, 3] }
                         }
                     }
                 }
             },
-            computed: {
-                totalPrice() {
-                    const currentRate = this.rates[this.selectedRank][this.identity];
-                    const basePrice = this.dayType === 'weekday' ? currentRate.weekday : currentRate.holiday;
-                    
-                    // 分段里程計算邏輯
-                    let kmPrice = 0;
-                    if (this.km <= 100) {
-                        kmPrice = this.km * currentRate.km[0];
-                    } else if (this.km <= 200) {
-                        kmPrice = (100 * currentRate.km[0]) + (this.km - 100) * currentRate.km[1];
-                    } else {
-                        kmPrice = (100 * currentRate.km[0]) + (100 * currentRate.km[1]) + (this.km - 200) * currentRate.km[2];
+            watch: {
+                // 如果切換等級時該等級無非會員資料，自動跳回會員
+                selectedRank(newRank) {
+                    if (!this.rates[newRank][this.identity]) {
+                        this.identity = 'member';
                     }
-                    
-                    return basePrice + kmPrice;
+                }
+            },
+            computed: {
+                basePrice() {
+                    const rateData = this.rates[this.selectedRank][this.identity];
+                    return this.dayType === 'weekday' ? rateData.weekday : rateData.holiday;
+                },
+                kmCost() {
+                    const kmRates = this.rates[this.selectedRank][this.identity].km;
+                    const distance = Math.max(0, this.km);
+                    let cost = 0;
+
+                    if (distance <= 100) {
+                        cost = distance * kmRates[0];
+                    } else if (distance <= 200) {
+                        cost = (100 * kmRates[0]) + (distance - 100) * kmRates[1];
+                    } else {
+                        cost = (100 * kmRates[0]) + (100 * kmRates[1]) + (distance - 200) * kmRates[2];
+                    }
+                    return cost;
+                },
+                totalPrice() {
+                    return this.basePrice + this.kmCost;
                 }
             }
-        }).mount('#app')
+        }).mount('#app');
     </script>
 </body>
 </html>
